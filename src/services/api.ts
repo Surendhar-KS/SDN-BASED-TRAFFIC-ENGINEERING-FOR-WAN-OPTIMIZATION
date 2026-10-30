@@ -37,6 +37,45 @@ export interface HealthResponse {
   controller_connected: boolean;
 }
 
+export interface ControllerStatus {
+  active_path: "primary" | "backup" | "unknown";
+  congestion: boolean;
+  controller: string;
+  last_event: string;
+  monitored_capacity_mbps: number;
+  monitored_link: string;
+  primary_threshold: number;
+  recovery_threshold: number;
+  updated_at: string;
+  utilization: number;
+  primary_utilization?: number;
+  backup_utilization?: number;
+}
+
+export interface ControllerStatusResponse {
+  mode: string;
+  source: string;
+  data: ControllerStatus;
+}
+
+export interface TrafficSample {
+  timestamp: string;
+  utilization: number;
+  primary_utilization: number;
+  backup_utilization: number;
+  active_path: "primary" | "backup" | "unknown";
+  congestion: boolean;
+}
+
+export interface TrafficHistoryResponse {
+  mode: string;
+  source: string;
+  data: {
+    sample_count: number;
+    samples: TrafficSample[];
+  };
+}
+
 export interface ApiLink {
   id: string;
   source: string;
@@ -90,7 +129,10 @@ async function getJson<T>(endpoint: string): Promise<T> {
 export const api = {
   health: () =>
     getJson<HealthResponse>("/health"),
-
+controllerStatus: () =>
+    getJson<ControllerStatusResponse>("/controller/status"),
+controllerTraffic: () =>
+    getJson<TrafficHistoryResponse>("/controller/traffic"),
   topology: () =>
     getJson<ApiResponse<{
       nodes: Array<{

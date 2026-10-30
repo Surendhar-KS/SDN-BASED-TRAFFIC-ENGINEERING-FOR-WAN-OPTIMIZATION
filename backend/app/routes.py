@@ -1,5 +1,8 @@
 from flask import Blueprint, jsonify, request
 from . import data
+import json
+from urllib.request import urlopen
+from urllib.error import URLError
 
 api = Blueprint("api", __name__)
 
@@ -67,3 +70,52 @@ def optimize():
         "openflow_rules_installed": False,
         "mode": "demo",
     }), 503
+
+
+@api.get("/controller/status")
+def controller_status():
+    controller_url = "http://192.168.56.101:5001/api/monitoring/status"
+
+    try:
+        with urlopen(controller_url, timeout=3) as response:
+            status = json.loads(response.read().decode("utf-8"))
+
+        return jsonify({
+            "mode": "live",
+            "source": "ubuntu-sdn-controller",
+            "data": status
+        })
+
+    except (URLError, TimeoutError, OSError, ValueError) as error:
+        return jsonify({
+            "mode": "disconnected",
+            "source": "ubuntu-sdn-controller",
+            "controller_connected": False,
+            "message": str(error)
+        }), 503
+
+
+@api.get("/controller/traffic")
+def controller_traffic():
+    controller_url = "http://192.168.56.101:5001/api/monitoring/traffic"
+
+    try:
+        with urlopen(controller_url, timeout=5) as response:
+            traffic = json.loads(response.read().decode("utf-8"))
+
+        return jsonify({
+            "mode": "live",
+            "source": "ubuntu-sdn-controller",
+            "data": traffic.get("data", {})
+        })
+
+    except (URLError, TimeoutError, OSError, ValueError) as error:
+        return jsonify({
+            "mode": "disconnected",
+            "source": "ubuntu-sdn-controller",
+            "message": str(error),
+            "data": {
+                "sample_count": 0,
+                "samples": []
+            }
+        }), 503

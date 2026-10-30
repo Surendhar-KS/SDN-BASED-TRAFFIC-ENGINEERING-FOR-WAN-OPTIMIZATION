@@ -1,5 +1,12 @@
 ﻿import { useEffect, useMemo, useState, type ReactNode } from 'react';
-import { api, type ApiAlert, type ApiEvent, type MetricsSummary } from './services/api';
+import {
+  api,
+  type ApiAlert,
+  type ApiEvent,
+  type MetricsSummary,
+  type ControllerStatus,
+  type TrafficSample,
+} from './services/api';
 import {
   Activity,
   AlertTriangle,
@@ -94,71 +101,191 @@ function Metric({
   );
 }
 
-function Topology() {
+function Topology({
+  controllerStatus,
+  trafficSamples,
+}: {
+  controllerStatus: ControllerStatus | null;
+  trafficSamples: TrafficSample[];
+}) {
+  const latest = trafficSamples.length
+    ? trafficSamples[trafficSamples.length - 1]
+    : null;
+
+  const activePath = controllerStatus?.active_path ?? 'unknown';
+
+  const primaryUtilization =
+    latest?.primary_utilization ??
+    controllerStatus?.primary_utilization ??
+    0;
+
+  const backupUtilization =
+    latest?.backup_utilization ??
+    controllerStatus?.backup_utilization ??
+    0;
+
+  const primaryCongested = primaryUtilization >= 85;
+  const backupCongested = backupUtilization >= 85;
+
+  const primaryColor = primaryCongested
+    ? '#f0a34b'
+    : activePath === 'primary'
+      ? '#24c8d8'
+      : '#536176';
+
+  const backupColor = backupCongested
+    ? '#f0a34b'
+    : activePath === 'backup'
+      ? '#24c8d8'
+      : '#536176';
+
+  const edgeColor = '#536176';
+
   return (
     <div className="topology card">
       <div className="topology-head">
         <div>
-          <h3>WAN network topology</h3>
-          <p>Logical view · 5 nodes · 5 links</p>
+          <h3>NetPulse Mininet WAN topology</h3>
+          <p>6 nodes · 6 links · Primary and backup WAN paths</p>
         </div>
+
         <div className="legend">
-          <span><i className="dot green" />Healthy</span>
-          <span><i className="dot amber" />Congested</span>
-          <span><i className="dot red" />Down</span>
+          <span>
+            <i className="dot green" /> Active
+          </span>
+          <span>
+            <i className="dot amber" /> Congested
+          </span>
+          <span>
+            <i className="dot red" /> Standby
+          </span>
         </div>
       </div>
-      <svg viewBox="0 0 760 300" role="img" aria-label="WAN topology with two paths from Branch A through Core 01 or Core 02 to Data Center">
-        <defs>
-          <filter id="glow">
-            <feGaussianBlur stdDeviation="4" result="b" />
-            <feMerge>
-              <feMergeNode in="b" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
-        </defs>
-        <path d="M120 145 L300 75 L500 145 L670 145" className="edge amberline" />
-        <path d="M120 145 L300 230 L500 145" className="edge greenline" />
-        <path d="M500 145 L670 145" className="edge greenline" />
-        <path d="M300 75 L500 145" className="edge amberline" />
 
-        <g className="node" transform="translate(120 145)">
-          <circle r="31" />
-          <circle r="22" className="node-inner" />
-          <text y="5" textAnchor="middle">BR</text>
-          <text y="55" textAnchor="middle" className="node-label">Branch A</text>
-        </g>
-        <g className="node warning" transform="translate(300 75)">
-          <circle r="31" />
-          <circle r="22" className="node-inner" />
-          <text y="5" textAnchor="middle">C1</text>
-          <text y="55" textAnchor="middle" className="node-label">Core 01</text>
-        </g>
-        <g className="node" transform="translate(300 230)">
-          <circle r="31" />
-          <circle r="22" className="node-inner" />
-          <text y="5" textAnchor="middle">C2</text>
-          <text y="55" textAnchor="middle" className="node-label">Core 02</text>
-        </g>
-        <g className="node" transform="translate(500 145)">
-          <circle r="31" />
-          <circle r="22" className="node-inner" />
-          <text y="5" textAnchor="middle">GW</text>
-          <text y="55" textAnchor="middle" className="node-label">WAN Gateway</text>
-        </g>
-        <g className="node destination" transform="translate(670 145)">
-          <circle r="31" />
-          <circle r="22" className="node-inner" />
-          <text y="5" textAnchor="middle">DC</text>
-          <text y="55" textAnchor="middle" className="node-label">Data Center</text>
+      <svg
+        viewBox="0 0 860 300"
+        role="img"
+        aria-label="Live Mininet WAN topology with primary and backup paths"
+      >
+        {/* Host-to-switch links */}
+        <path
+          d="M100 150 L260 150"
+          stroke={edgeColor}
+          strokeWidth="3"
+          fill="none"
+        />
+
+        <path
+          d="M600 150 L760 150"
+          stroke={edgeColor}
+          strokeWidth="3"
+          fill="none"
+        />
+
+        {/* Primary WAN path */}
+        <path
+          d="M260 150 L430 70 L600 150"
+          stroke={primaryColor}
+          strokeWidth={activePath === 'primary' ? 5 : 3}
+          strokeDasharray={activePath === 'primary' ? 'none' : '7 5'}
+          fill="none"
+        />
+
+        {/* Backup WAN path */}
+        <path
+          d="M260 150 L430 230 L600 150"
+          stroke={backupColor}
+          strokeWidth={activePath === 'backup' ? 5 : 3}
+          strokeDasharray={activePath === 'backup' ? 'none' : '7 5'}
+          fill="none"
+        />
+
+        {/* Primary utilization */}
+        <text x="345" y="75" className="edge-label" textAnchor="middle">
+          {`Primary: ${primaryUtilization.toFixed(1)}%`}
+        </text>
+
+        {/* Backup utilization */}
+        <text x="345" y="238" className="edge-label" textAnchor="middle">
+          {`Backup: ${backupUtilization.toFixed(1)}%`}
+        </text>
+
+        {/* Host h1 */}
+        <g className="node" transform="translate(100 150)">
+          <circle r="30" />
+          <circle r="21" className="node-inner" />
+          <text y="5" textAnchor="middle">h1</text>
+          <text y="52" textAnchor="middle" className="node-label">
+            Host 1
+          </text>
         </g>
 
-        <text x="204" y="91" className="edge-label">86% · 42 ms</text>
-        <text x="205" y="205" className="edge-label">28% · 24 ms</text>
-        <text x="570" y="128" className="edge-label">34% · 18 ms</text>
+        {/* Switch s1 */}
+        <g className="node destination" transform="translate(260 150)">
+          <circle r="30" />
+          <circle r="21" className="node-inner" />
+          <text y="5" textAnchor="middle">s1</text>
+          <text y="52" textAnchor="middle" className="node-label">
+            Edge Switch
+          </text>
+        </g>
+
+        {/* Primary switch s2 */}
+        <g
+          className={`node ${primaryCongested ? 'warning' : ''}`}
+          transform="translate(430 70)"
+        >
+          <circle r="30" />
+          <circle r="21" className="node-inner" />
+          <text y="5" textAnchor="middle">s2</text>
+          <text y="52" textAnchor="middle" className="node-label">
+            Primary Core
+          </text>
+        </g>
+
+        {/* Backup switch s3 */}
+        <g
+          className={`node ${backupCongested ? 'warning' : ''}`}
+          transform="translate(430 230)"
+        >
+          <circle r="30" />
+          <circle r="21" className="node-inner" />
+          <text y="5" textAnchor="middle">s3</text>
+          <text y="52" textAnchor="middle" className="node-label">
+            Backup Core
+          </text>
+        </g>
+
+        {/* Switch s4 */}
+        <g className="node destination" transform="translate(600 150)">
+          <circle r="30" />
+          <circle r="21" className="node-inner" />
+          <text y="5" textAnchor="middle">s4</text>
+          <text y="52" textAnchor="middle" className="node-label">
+            Gateway
+          </text>
+        </g>
+
+        {/* Host h2 */}
+        <g className="node" transform="translate(760 150)">
+          <circle r="30" />
+          <circle r="21" className="node-inner" />
+          <text y="5" textAnchor="middle">h2</text>
+          <text y="52" textAnchor="middle" className="node-label">
+            Host 2
+          </text>
+        </g>
       </svg>
-      <div className="topology-note"><span className="pulse" /> Live topology preview <span className="muted">· Demonstration network data</span></div>
+
+      <div className="topology-note">
+        <span className="pulse" />
+        {controllerStatus
+          ? `Controller connected · Active path: ${activePath.toUpperCase()}`
+          : 'Waiting for controller connection'}
+        <span className="muted">
+          {' '}· Link capacities: Primary 10 Mbps / Backup 20 Mbps
+        </span>
+      </div>
     </div>
   );
 }
@@ -173,6 +300,8 @@ function App() {
 
   const [apiConnected, setApiConnected] = useState(false);
   const [controllerConnected, setControllerConnected] = useState(false);
+  const [controllerStatus, setControllerStatus] = useState<ControllerStatus | null>(null);
+  const [trafficSamples, setTrafficSamples] = useState<TrafficSample[]>([]);
   const [apiMode, setApiMode] = useState('offline');
   const [apiError, setApiError] = useState('');
   const [apiEvents, setApiEvents] = useState<ApiEvent[]>([]);
@@ -234,6 +363,32 @@ function App() {
         setApiMode(health.mode);
         setApiConnected(true);
         setApiError('');
+        try {
+  const controllerResponse = await api.controllerStatus();
+
+  if (!active) return;
+
+  setControllerStatus(controllerResponse.data);
+  setControllerConnected(
+    controllerResponse.data.controller === 'connected'
+  );
+} catch {
+  if (!active) return;
+
+  setControllerStatus(null);
+  setControllerConnected(false);
+}
+        try {
+          const trafficResponse = await api.controllerTraffic();
+
+          if (!active) return;
+
+          setTrafficSamples(trafficResponse.data.samples);
+        } catch {
+          if (!active) return;
+
+          setTrafficSamples([]);
+        }
       } catch (error) {
         if (!active) return;
 
@@ -381,37 +536,176 @@ function App() {
           </div>
 
           {page === 'Overview' && (
-            <div className="metrics-grid">
-              <Metric title="Network availability" value="N/A" unit="" change="Not measured" icon={ShieldCheck} tone="green" />
-              <Metric title="Average throughput" value="N/A" unit="" change="Not measured" icon={Activity} />
-              <Metric title="Average latency" value="N/A" unit="" change="Not measured" icon={Clock3} tone="purple" />
-              <Metric title="Active links" value={String(metrics?.links_up ?? 0)} unit={`/ ${metrics?.links_total ?? 0}`} change={apiConnected ? 'Backend data' : 'API offline'} icon={Cable} tone="green" />
-            </div>
-          )}
+  <>
+    <div className="metrics-grid">
+      <Metric
+        title="Active WAN path"
+        value={controllerStatus?.active_path?.toUpperCase() ?? 'N/A'}
+        unit=""
+        change={controllerConnected ? 'Live controller' : 'Controller offline'}
+        icon={Route}
+        tone="green"
+      />
 
-          {page === 'Topology' && <Topology />}
+      <Metric
+        title="Primary link utilization"
+        value={controllerStatus ? controllerStatus.utilization.toFixed(2) : 'N/A'}
+        unit="%"
+        change={controllerStatus?.monitored_link ?? 'Waiting for data'}
+        icon={Activity}
+      />
+
+      <Metric
+        title="Congestion status"
+        value={controllerStatus
+          ? controllerStatus.congestion ? 'Detected' : 'Normal'
+          : 'N/A'}
+        unit=""
+        change={controllerStatus
+          ? `Threshold ${controllerStatus.primary_threshold}%`
+          : 'Controller offline'}
+        icon={AlertTriangle}
+        tone={controllerStatus?.congestion ? 'red' : 'green'}
+      />
+
+      <Metric
+        title="Active links"
+        value={String(metrics?.links_up ?? 0)}
+        unit={`/ ${metrics?.links_total ?? 0}`}
+        change={apiConnected ? 'Backend data' : 'API offline'}
+        icon={Cable}
+        tone="green"
+      />
+    </div>
+
+    <div className="card" style={{ marginTop: 20, padding: 20 }}>
+      <h3>Latest SDN controller event</h3>
+      <p>
+        {controllerStatus?.last_event ?? 'Waiting for controller event'}
+      </p>
+      <small>
+        Active route: {controllerStatus?.active_path ?? 'Unknown'}
+        {' · '}
+        Last update: {controllerStatus?.updated_at ?? 'Unavailable'}
+      </small>
+    </div>
+  </>
+)}
+
+         {page === 'Topology' && (
+  <Topology
+    controllerStatus={controllerStatus}
+    trafficSamples={trafficSamples}
+  />
+)}
 
           {page === 'Traffic monitoring' && (
             <div className="card chart-card">
               <div className="card-heading">
                 <div>
-                  <h3>Live traffic monitoring</h3>
-                  <p>Sample throughput series · replace with controller metrics during integration</p>
+                  <h3>Live WAN traffic utilization</h3>
+                  <p>
+                    Real-time primary and backup link measurements ·
+                    OS-Ken SDN Controller
+                  </p>
                 </div>
-                <Badge tone="info">DEMO STREAM</Badge>
+
+                <Badge tone={trafficSamples.length > 0 ? 'success' : 'danger'}>
+                  {trafficSamples.length > 0 ? 'LIVE DATA' : 'WAITING FOR DATA'}
+                </Badge>
               </div>
-              <div className="chart tall">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={traffic}>
-                    <CartesianGrid stroke="#222b3b" strokeDasharray="3 5" />
-                    <XAxis dataKey="time" tick={{ fill: '#78869b', fontSize: 11 }} />
-                    <YAxis tick={{ fill: '#78869b', fontSize: 11 }} />
-                    <Tooltip contentStyle={{ background: '#111a29', border: '1px solid #29364a' }} />
-                    <Line dataKey="inbound" stroke="#24c8d8" strokeWidth={2} dot={false} />
-                    <Line dataKey="outbound" stroke="#9277f5" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+
+              {trafficSamples.length > 0 ? (
+                <>
+                  <div className="chart tall">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={trafficSamples.map((sample) => ({
+                          ...sample,
+                          time: sample.timestamp.slice(11, 19),
+                        }))}
+                      >
+                        <CartesianGrid
+                          stroke="#222b3b"
+                          strokeDasharray="3 5"
+                        />
+
+                        <XAxis
+                          dataKey="time"
+                          tick={{ fill: '#78869b', fontSize: 11 }}
+                        />
+
+                        <YAxis
+                          domain={[0, 100]}
+                          tick={{ fill: '#78869b', fontSize: 11 }}
+                          unit="%"
+                        />
+
+                        <Tooltip
+                          contentStyle={{
+                            background: '#111a29',
+                            border: '1px solid #29364a',
+                          }}
+                          formatter={(value) => [
+                            `${Number(value).toFixed(2)}%`,
+                            'Utilization',
+                          ]}
+                        />
+
+                        <Line
+                          type="monotone"
+                          dataKey="primary_utilization"
+                          name="Primary WAN"
+                          stroke="#24c8d8"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+
+                        <Line
+                          type="monotone"
+                          dataKey="backup_utilization"
+                          name="Backup WAN"
+                          stroke="#9277f5"
+                          strokeWidth={2}
+                          dot={false}
+                          isAnimationActive={false}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div className="summary-stat">
+                    <span>Collected samples</span>
+                    <b>{trafficSamples.length}</b>
+                  </div>
+
+                  <div className="summary-stat">
+                    <span>Current active route</span>
+                    <b>
+                      {trafficSamples[trafficSamples.length - 1].active_path.toUpperCase()}
+                    </b>
+                  </div>
+
+                  <div className="summary-stat">
+                    <span>Latest primary utilization</span>
+                    <b>
+                      {trafficSamples[trafficSamples.length - 1].primary_utilization.toFixed(2)}%
+                    </b>
+                  </div>
+
+                  <div className="summary-stat">
+                    <span>Latest backup utilization</span>
+                    <b>
+                      {trafficSamples[trafficSamples.length - 1].backup_utilization.toFixed(2)}%
+                    </b>
+                  </div>
+                </>
+              ) : (
+                <div className="empty">
+                  Waiting for live traffic measurements from the SDN controller.
+                </div>
+              )}
             </div>
           )}
 
@@ -420,89 +714,214 @@ function App() {
               <div className="card">
                 <div className="card-heading">
                   <div>
-                    <h3>Traffic optimization</h3>
-                    <p>Capacity-aware path selection · demonstration action</p>
+                    <h3>SDN Traffic Engineering</h3>
+                    <p>Live routes from the NetPulse Mininet topology</p>
                   </div>
-                  <Badge tone="success">Ready</Badge>
+                  <Badge tone={controllerConnected ? 'success' : 'danger'}>
+                    {controllerConnected ? 'Controller connected' : 'Controller offline'}
+                  </Badge>
                 </div>
 
-                <div className="route-box">
+                <div className={`route-box ${
+                  controllerStatus?.active_path === 'primary' ? 'recommended' : ''
+                }`}>
                   <div className="route-head">
-                    <b>Current route</b>
-                    <Badge tone="warning">High utilization</Badge>
+                    <b>Primary WAN path</b>
+                    <Badge tone={controllerStatus?.active_path === 'primary' ? 'success' : 'neutral'}>
+                      {controllerStatus?.active_path === 'primary' ? 'ACTIVE' : 'STANDBY'}
+                    </Badge>
                   </div>
                   <div className="route-flow">
-                    <span>Branch A</span><i /><span>Core 01</span><i /><span>Gateway</span><i /><span>Data Center</span>
+                    <span>h1</span><i /><span>s1</span><i /><span>s2</span><i /><span>s4</span><i /><span>h2</span>
                   </div>
-                  <small>WAN-LINK-01 · 86% utilization · 42 ms</small>
+                  <small>
+                    S1 → S2 → S4 · 10 Mbps bottleneck capacity
+                  </small>
+                  <small>
+                    Monitored utilization: {controllerStatus
+                      ? `${controllerStatus.utilization.toFixed(2)}%`
+                      : 'Unavailable'}
+                  </small>
                 </div>
 
-                <div className="route-box recommended">
+                <div className={`route-box ${
+                  controllerStatus?.active_path === 'backup' ? 'recommended' : ''
+                }`}>
                   <div className="route-head">
-                    <b>Recommended route</b>
-                    <Badge tone="success">Available capacity</Badge>
+                    <b>Backup WAN path</b>
+                    <Badge tone={controllerStatus?.active_path === 'backup' ? 'success' : 'neutral'}>
+                      {controllerStatus?.active_path === 'backup' ? 'ACTIVE' : 'STANDBY'}
+                    </Badge>
                   </div>
                   <div className="route-flow">
-                    <span>Branch A</span><i /><span>Core 02</span><i /><span>Gateway</span><i /><span>Data Center</span>
+                    <span>h1</span><i /><span>s1</span><i /><span>s3</span><i /><span>s4</span><i /><span>h2</span>
                   </div>
-                  <small>Backup path · 28% utilization · 24 ms</small>
+                  <small>
+                    S1 → S3 → S4 · 20 Mbps bottleneck capacity
+                  </small>
+                  <small>
+                    Separate backup-link utilization is not currently monitored.
+                  </small>
                 </div>
 
-                <button className="primary-btn full" onClick={reroute}><Route size={16} /> Apply demo reroute</button>
-
-                {actionMessage && (
-                  <div className="alert-row">
-                    <div>
-                      <b>Optimization response</b>
-                      <p>{actionMessage}</p>
-                    </div>
+                <div className="alert-row">
+                  <div>
+                    <b>Latest controller event</b>
+                    <p>
+                      {controllerStatus?.last_event ?? 'Waiting for controller data'}
+                    </p>
+                    <small>
+                      Last update: {controllerStatus?.updated_at ?? 'Unavailable'}
+                    </small>
                   </div>
-                )}
+                </div>
 
-                <p className="disclaimer">Demo interaction only: updates local sample values. No OpenFlow rules are sent yet.</p>
+                <p className="disclaimer">
+                  Routes are controlled automatically by the OS-Ken controller.
+                  Manual optimization through the dashboard is not enabled yet.
+                </p>
               </div>
 
               <div className="card">
                 <h3>Optimization summary</h3>
-                <div className="summary-stat"><span>Reroutes executed</span><b>{reroutes}</b></div>
-                <div className="summary-stat"><span>Current avg. link utilization</span><b>{avg}%</b></div>
-                <div className="summary-stat"><span>Routing algorithm</span><b>Weighted shortest path</b></div>
-                <div className="summary-stat"><span>Capacity validation</span><Badge tone="success">Enabled in design</Badge></div>
+
+                <div className="summary-stat">
+                  <span>Active route</span>
+                  <b>{controllerStatus?.active_path?.toUpperCase() ?? 'UNKNOWN'}</b>
+                </div>
+
+                <div className="summary-stat">
+                  <span>Congestion threshold</span>
+                  <b>{controllerStatus
+                    ? `${controllerStatus.primary_threshold}%`
+                    : 'Unavailable'}</b>
+                </div>
+
+                <div className="summary-stat">
+                  <span>Recovery threshold</span>
+                  <b>{controllerStatus
+                    ? `${controllerStatus.recovery_threshold}%`
+                    : 'Unavailable'}</b>
+                </div>
+
+                <div className="summary-stat">
+                  <span>Monitored link</span>
+                  <b>{controllerStatus?.monitored_link ?? 'Unavailable'}</b>
+                </div>
+
+                <div className="summary-stat">
+                  <span>Monitored capacity</span>
+                  <b>{controllerStatus
+                    ? `${controllerStatus.monitored_capacity_mbps} Mbps`
+                    : 'Unavailable'}</b>
+                </div>
+
+                <div className="summary-stat">
+                  <span>Congestion status</span>
+                  <Badge tone={controllerStatus
+                    ? controllerStatus.congestion ? 'danger' : 'success'
+                    : 'neutral'}>
+                    {controllerStatus
+                      ? controllerStatus.congestion ? 'Detected' : 'Normal'
+                      : 'Unknown'}
+                  </Badge>
+                </div>
               </div>
             </div>
           )}
 
           {page === 'Congestion alerts' && (
-            <div className="card table-card">
-              <div className="card-heading">
-                <div>
-                  <h3>Congestion and network alerts</h3>
-                  <p>Threshold-based events · demonstration data</p>
-                </div>
-                <Badge tone="warning">2 open</Badge>
-              </div>
+  <div className="card table-card">
+    <div className="card-heading">
+      <div>
+        <h3>Congestion and network alerts</h3>
+        <p>Live events from the NetPulse SDN controller</p>
+      </div>
+      <Badge tone={
+        !controllerConnected
+          ? 'danger'
+          : controllerStatus?.congestion
+            ? 'danger'
+            : 'success'
+      }>
+        {!controllerConnected
+          ? 'Controller offline'
+          : controllerStatus?.congestion
+            ? 'Congestion detected'
+            : 'No active congestion'}
+      </Badge>
+    </div>
 
-              <div className="alert-row">
-                <AlertTriangle className="danger-text" />
-                <div>
-                  <b>WAN-LINK-01 utilization above threshold</b>
-                  <p>86% utilization exceeds configured 85% trigger.</p>
-                </div>
-                <Badge tone="danger">Critical</Badge>
-              </div>
+    {!controllerConnected || !controllerStatus ? (
+      <div className="alert-row">
+        <AlertTriangle className="danger-text" />
+        <div>
+          <b>Controller unavailable</b>
+          <p>Live congestion information cannot currently be retrieved.</p>
+        </div>
+        <Badge tone="danger">Offline</Badge>
+      </div>
+    ) : (
+      <>
+        <div className="alert-row">
+          {controllerStatus.congestion
+            ? <AlertTriangle className="danger-text" />
+            : <CheckCircle2 className="positive" />}
+          <div>
+            <b>
+              {controllerStatus.congestion
+                ? 'Primary WAN congestion detected'
+                : 'Primary WAN link is operating normally'}
+            </b>
+            <p>
+              Current monitored utilization: {controllerStatus.utilization.toFixed(2)}%.
+              Congestion threshold: {controllerStatus.primary_threshold}%.
+            </p>
+          </div>
+          <Badge tone={controllerStatus.congestion ? 'danger' : 'success'}>
+            {controllerStatus.congestion ? 'Critical' : 'Healthy'}
+          </Badge>
+        </div>
 
-              <div className="alert-row">
-                <Clock3 className="warning-text" />
-                <div>
-                  <b>Branch B latency elevated</b>
-                  <p>31 ms is above the 30 ms warning threshold.</p>
-                </div>
-                <Badge tone="warning">Warning</Badge>
-              </div>
+        <div className="alert-row">
+          <Route className="warning-text" />
+          <div>
+            <b>Active WAN route</b>
+            <p>
+              Traffic is currently using the {controllerStatus.active_path.toUpperCase()} path.
+            </p>
+          </div>
+          <Badge tone="info">
+            {controllerStatus.active_path.toUpperCase()}
+          </Badge>
+        </div>
 
-              <button className="secondary-btn" onClick={() => setAlerts(false)}><CheckCircle2 size={15} /> Acknowledge alerts</button>
-            </div>
-          )}
+        <div className="alert-row">
+          <Clock3 className="warning-text" />
+          <div>
+            <b>Latest controller event</b>
+            <p>{controllerStatus.last_event}</p>
+            <small>Updated: {controllerStatus.updated_at}</small>
+          </div>
+          <Badge tone="info">Event</Badge>
+        </div>
+
+        <div className="alert-row">
+          <CheckCircle2 className="positive" />
+          <div>
+            <b>Recovery configuration</b>
+            <p>
+              Recovery threshold: {controllerStatus.recovery_threshold}%.
+              The controller requires utilization to remain below this threshold
+              for 10 seconds before returning to the primary route.
+            </p>
+          </div>
+          <Badge tone="success">Configured</Badge>
+        </div>
+      </>
+    )}
+  </div>
+)}
 
           {page === 'Link management' && (
             <div className="card table-card">
