@@ -111,7 +111,8 @@ export interface MetricsSummary {
 }
 
 async function getJson<T>(endpoint: string): Promise<T> {
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+  const url = `${API_BASE_URL}${endpoint}`;
+  const response = await fetch(url, {
     headers: {
       Accept: "application/json",
     },
@@ -123,7 +124,9 @@ async function getJson<T>(endpoint: string): Promise<T> {
     );
   }
 
-  return response.json() as Promise<T>;
+  const payload = await response.json() as T;
+  console.log(`[NetPulse] API response received for ${endpoint}`, payload);
+  return payload;
 }
 
 export const api = {

@@ -64,6 +64,34 @@ const events = [
   { id: 'evt-4', time: '10:30:12', type: 'Controller', severity: 'Info', message: 'Controller heartbeat received' },
 ];
 
+function normalizeControllerStatus(rawStatus: Partial<ControllerStatus> | null | undefined): ControllerStatus | null {
+  if (!rawStatus || typeof rawStatus !== 'object') {
+    return null;
+  }
+
+  const activePath = rawStatus.active_path === 'primary' || rawStatus.active_path === 'backup'
+    ? rawStatus.active_path
+    : 'unknown';
+
+  const primaryUtilization = Number(rawStatus.primary_utilization ?? rawStatus.utilization ?? 0);
+  const backupUtilization = Number(rawStatus.backup_utilization ?? 0);
+
+  return {
+    active_path: activePath,
+    congestion: Boolean(rawStatus.congestion),
+    controller: typeof rawStatus.controller === 'string' ? rawStatus.controller : 'disconnected',
+    last_event: typeof rawStatus.last_event === 'string' ? rawStatus.last_event : 'Waiting for controller event',
+    monitored_capacity_mbps: Number(rawStatus.monitored_capacity_mbps ?? 0),
+    monitored_link: typeof rawStatus.monitored_link === 'string' ? rawStatus.monitored_link : 'Unknown',
+    primary_threshold: Number(rawStatus.primary_threshold ?? 85),
+    recovery_threshold: Number(rawStatus.recovery_threshold ?? 60),
+    updated_at: typeof rawStatus.updated_at === 'string' ? rawStatus.updated_at : new Date().toISOString(),
+    utilization: primaryUtilization,
+    primary_utilization: primaryUtilization,
+    backup_utilization: backupUtilization,
+  };
+}
+
 function Badge({ children, tone = 'neutral' }: { children: ReactNode; tone?: string }) {
   return <span className={`badge ${tone}`}>{children}</span>;
 }
@@ -322,6 +350,14 @@ function App() {
           api.alerts(),
         ]);
 
+        console.log('[NetPulse] API response received', {
+          health,
+          links: linksResponse,
+          metrics: metricsResponse,
+          events: eventsResponse,
+          alerts: alertsResponse,
+        });
+
         if (!active) return;
 
         const nodeNames: Record<string, string> = {
@@ -363,37 +399,60 @@ function App() {
         setApiMode(health.mode);
         setApiConnected(true);
         setApiError('');
+
         try {
-  const controllerResponse = await api.controllerStatus();
+          const controllerResponse = await api.controllerStatus();
 
-  if (!active) return;
+          if (!active) return;
 
-  setControllerStatus(controllerResponse.data);
-  setControllerConnected(
-    controllerResponse.data.controller === 'connected'
-  );
-} catch {
-  if (!active) return;
+          console.log('[NetPulse] controller status received', controllerResponse);
 
-  setControllerStatus(null);
-  setControllerConnected(false);
-}
+          const nextStatus = normalizeControllerStatus(controllerResponse.data);
+          const nextConnected = Boolean(nextStatus && (nextStatus.controller === 'connected' || health.controller_connected));
+
+          console.log('[NetPulse] active_path', nextStatus?.active_path, 'updated_at', nextStatus?.updated_at, 'controllerConnected', nextConnected);
+
+          setControllerStatus(nextStatus);
+          setControllerConnected(nextConnected);
+          if (nextStatus) {
+            console.log('[NetPulse] frontend state update', {
+              active_path: nextStatus.active_path,
+              updated_at: nextStatus.updated_at,
+              primary_utilization: nextStatus.primary_utilization,
+              backup_utilization: nextStatus.backup_utilization,
+              controllerConnected: nextConnected,
+            });
+          }
+        } catch (error) {
+          if (!active) return;
+
+          console.warn('[NetPulse] controller status stale or disconnected', error);
+          setControllerStatus(null);
+          setControllerConnected(false);
+        }
+
         try {
           const trafficResponse = await api.controllerTraffic();
 
           if (!active) return;
 
-          setTrafficSamples(trafficResponse.data.samples);
-        } catch {
+          const nextSamples = Array.isArray(trafficResponse.data?.samples) ? trafficResponse.data.samples : [];
+          console.log('[NetPulse] traffic samples received', nextSamples.at(-1));
+          setTrafficSamples(nextSamples);
+        } catch (error) {
           if (!active) return;
 
+          console.warn('[NetPulse] traffic samples unavailable', error);
           setTrafficSamples([]);
         }
       } catch (error) {
         if (!active) return;
 
+        console.error('[NetPulse] backend API failure', error);
         setApiConnected(false);
         setApiError(error instanceof Error ? error.message : 'Unable to connect to backend');
+        setControllerStatus(null);
+        setControllerConnected(false);
       }
     }
 
@@ -549,7 +608,7 @@ function App() {
 
       <Metric
         title="Primary link utilization"
-        value={controllerStatus ? controllerStatus.utilization.toFixed(2) : 'N/A'}
+        value={controllerStatus ? (controllerStatus.primary_utilization ?? controllerStatus.utilization).toFixed(2) : 'N/A'}
         unit="%"
         change={controllerStatus?.monitored_link ?? 'Waiting for data'}
         icon={Activity}

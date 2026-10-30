@@ -80,6 +80,7 @@ def controller_status():
         with urlopen(controller_url, timeout=3) as response:
             status = json.loads(response.read().decode("utf-8"))
 
+        print("[NetPulse] status.json proxied to Windows API", status)
         return jsonify({
             "mode": "live",
             "source": "ubuntu-sdn-controller",
@@ -87,6 +88,7 @@ def controller_status():
         })
 
     except (URLError, TimeoutError, OSError, ValueError) as error:
+        print("[NetPulse] status.json unavailable", str(error))
         return jsonify({
             "mode": "disconnected",
             "source": "ubuntu-sdn-controller",
@@ -103,6 +105,7 @@ def controller_traffic():
         with urlopen(controller_url, timeout=5) as response:
             traffic = json.loads(response.read().decode("utf-8"))
 
+        print("[NetPulse] traffic samples proxied to Windows API", traffic)
         return jsonify({
             "mode": "live",
             "source": "ubuntu-sdn-controller",
@@ -110,6 +113,7 @@ def controller_traffic():
         })
 
     except (URLError, TimeoutError, OSError, ValueError) as error:
+        print("[NetPulse] traffic samples unavailable", str(error))
         return jsonify({
             "mode": "disconnected",
             "source": "ubuntu-sdn-controller",
