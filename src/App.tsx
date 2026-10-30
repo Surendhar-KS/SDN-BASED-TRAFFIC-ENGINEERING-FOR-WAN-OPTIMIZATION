@@ -465,10 +465,43 @@ function App() {
     };
   }, []);
 
+  const liveLinks = useMemo(() => {
+    const baseLinks = links.length ? links : initialLinks;
+    const primaryUtilization = controllerStatus?.primary_utilization ?? null;
+    const backupUtilization = controllerStatus?.backup_utilization ?? null;
+
+    return baseLinks.map((link) => {
+      const isPrimaryRoute = link.path === 'Primary';
+      const computedUsage = isPrimaryRoute
+        ? (primaryUtilization ?? link.usage)
+        : (backupUtilization ?? link.usage);
+      const usage = Number(Math.min(Math.max(computedUsage, 0), 100).toFixed(2));
+
+      return {
+        ...link,
+        usage,
+        status: usage >= 85 ? 'Congested' : usage >= 70 ? 'Warning' : 'Healthy',
+        path: isPrimaryRoute ? 'Primary' : 'Backup',
+      };
+    });
+  }, [controllerStatus, links]);
+
   const avg = useMemo(
-    () => Math.round(links.reduce((total, link) => total + link.usage, 0) / links.length),
-    [links]
+    () => Math.round(liveLinks.reduce((total, link) => total + link.usage, 0) / Math.max(liveLinks.length, 1)),
+    [liveLinks]
   );
+
+  const analyticsTrendData = useMemo(() => {
+    if (trafficSamples.length > 0) {
+      return trafficSamples.map((sample) => ({
+        time: sample.timestamp.slice(11, 19),
+        inbound: Number(sample.primary_utilization.toFixed(2)),
+        outbound: Number(sample.backup_utilization.toFixed(2)),
+      }));
+    }
+
+    return traffic;
+  }, [trafficSamples]);
 
   const reroute = async () => {
     setActionMessage('Contacting traffic engineering API...');
@@ -495,7 +528,7 @@ function App() {
     setPage('Traffic engineering');
   };
 
-  const filtered = links.filter((link) =>
+  const filtered = liveLinks.filter((link) =>
     (link.id + link.from + link.to + link.status).toLowerCase().includes(query.toLowerCase())
   );
 
@@ -1008,12 +1041,13 @@ function App() {
                 <h3>Traffic trend</h3>
                 <div className="chart tall">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={traffic}>
+                    <AreaChart data={analyticsTrendData}>
                       <CartesianGrid stroke="#222b3b" />
                       <XAxis dataKey="time" tick={{ fill: '#78869b' }} />
                       <YAxis tick={{ fill: '#78869b' }} />
                       <Tooltip />
                       <Area dataKey="inbound" stroke="#24c8d8" fill="#24c8d8" fillOpacity={0.12} />
+                      <Area dataKey="outbound" stroke="#9277f5" fill="#9277f5" fillOpacity={0.08} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
