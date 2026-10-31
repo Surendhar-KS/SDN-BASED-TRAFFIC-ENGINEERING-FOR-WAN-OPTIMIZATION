@@ -532,6 +532,24 @@ function App() {
     (link.id + link.from + link.to + link.status).toLowerCase().includes(query.toLowerCase())
   );
 
+  const liveEventRows = useMemo(() => {
+    if (apiEvents.length > 0) {
+      return apiEvents;
+    }
+
+    if (controllerStatus) {
+      return [{
+        id: `controller-${controllerStatus.updated_at}`,
+        type: 'Controller',
+        severity: controllerStatus.congestion ? 'Critical' : 'Info',
+        message: controllerStatus.last_event,
+        source: 'live-controller',
+      }];
+    }
+
+    return events;
+  }, [apiEvents, controllerStatus]);
+
   return (
     <div className="app-shell">
       <aside className={`sidebar ${mobile ? 'show' : ''}`}>
@@ -1065,7 +1083,7 @@ function App() {
                 <Badge tone="info">Latest events</Badge>
               </div>
 
-              {(apiEvents.length ? apiEvents : events).map((event) => (
+              {liveEventRows.map((event) => (
                 <div className="alert-row" key={event.id ?? `${event.type}-${event.message}`}>
                   <div>
                     <b>{event.type}</b>
@@ -1075,7 +1093,7 @@ function App() {
                 </div>
               ))}
 
-              {apiEvents.length === 0 && !events.length && <div className="empty">No recent events.</div>}
+              {liveEventRows.length === 0 && <div className="empty">No recent events.</div>}
             </div>
           )}
 
