@@ -156,18 +156,18 @@ function Topology({
   const backupCongested = backupUtilization >= 85;
 
   const primaryColor = primaryCongested
-    ? '#f0a34b'
+    ? '#E76F51'
     : activePath === 'primary'
-      ? '#24c8d8'
-      : '#536176';
+      ? '#2A9D8F'
+      : '#264653';
 
   const backupColor = backupCongested
-    ? '#f0a34b'
+    ? '#E76F51'
     : activePath === 'backup'
-      ? '#24c8d8'
-      : '#536176';
+      ? '#2A9D8F'
+      : '#264653';
 
-  const edgeColor = '#536176';
+  const edgeColor = '#264653';
 
   return (
     <div className="topology card">
@@ -736,25 +736,26 @@ function App() {
                         }))}
                       >
                         <CartesianGrid
-                          stroke="#222b3b"
+                          stroke="rgba(38,70,83,0.18)"
                           strokeDasharray="3 5"
                         />
 
                         <XAxis
                           dataKey="time"
-                          tick={{ fill: '#78869b', fontSize: 11 }}
+                          tick={{ fill: '#617684', fontSize: 11 }}
                         />
 
                         <YAxis
                           domain={[0, 100]}
-                          tick={{ fill: '#78869b', fontSize: 11 }}
+                          tick={{ fill: '#617684', fontSize: 11 }}
                           unit="%"
                         />
 
                         <Tooltip
                           contentStyle={{
-                            background: '#111a29',
-                            border: '1px solid #29364a',
+                            background: '#264653',
+                            border: '1px solid rgba(244,237,228,0.2)',
+                            color: '#F4EDE4',
                           }}
                           formatter={(value) => [
                             `${Number(value).toFixed(2)}%`,
@@ -766,7 +767,7 @@ function App() {
                           type="monotone"
                           dataKey="primary_utilization"
                           name="Primary WAN"
-                          stroke="#24c8d8"
+                          stroke="#2A9D8F"
                           strokeWidth={2}
                           dot={false}
                           isAnimationActive={false}
@@ -776,7 +777,7 @@ function App() {
                           type="monotone"
                           dataKey="backup_utilization"
                           name="Backup WAN"
-                          stroke="#9277f5"
+                          stroke="#E76F51"
                           strokeWidth={2}
                           dot={false}
                           isAnimationActive={false}
@@ -1060,12 +1061,12 @@ function App() {
                 <div className="chart tall">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={analyticsTrendData}>
-                      <CartesianGrid stroke="#222b3b" />
-                      <XAxis dataKey="time" tick={{ fill: '#78869b' }} />
-                      <YAxis tick={{ fill: '#78869b' }} />
+                      <CartesianGrid stroke="rgba(38,70,83,0.18)" />
+                      <XAxis dataKey="time" tick={{ fill: '#617684' }} />
+                      <YAxis tick={{ fill: '#617684' }} />
                       <Tooltip />
-                      <Area dataKey="inbound" stroke="#24c8d8" fill="#24c8d8" fillOpacity={0.12} />
-                      <Area dataKey="outbound" stroke="#9277f5" fill="#9277f5" fillOpacity={0.08} />
+                      <Area dataKey="inbound" stroke="#2A9D8F" fill="#2A9D8F" fillOpacity={0.12} />
+                      <Area dataKey="outbound" stroke="#E76F51" fill="#E76F51" fillOpacity={0.08} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
