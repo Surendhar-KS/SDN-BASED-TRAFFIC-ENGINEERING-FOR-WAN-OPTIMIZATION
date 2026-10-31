@@ -28,13 +28,16 @@ import {
   X,
 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import DemoPage from './pages/Demo';
+import { AssistantWidget } from './assistant/AssistantWidget';
 
-type Page = 'Overview' | 'Topology' | 'Traffic monitoring' | 'Traffic engineering' | 'Congestion alerts' | 'Link management' | 'Analytics' | 'Event logs' | 'Settings';
+type Page = 'Overview' | 'Topology' | 'Traffic monitoring' | 'Traffic engineering' | 'Congestion alerts' | 'Link management' | 'Analytics' | 'Event logs' | 'Demo' | 'Settings';
 
 const pages: { name: Page; icon: any; group: string }[] = [
   { name: 'Overview', icon: LayoutDashboard, group: 'MONITOR' },
   { name: 'Topology', icon: Network, group: 'MONITOR' },
   { name: 'Traffic monitoring', icon: Activity, group: 'MONITOR' },
+  { name: 'Demo', icon: Activity, group: 'MONITOR' },
   { name: 'Traffic engineering', icon: Route, group: 'OPTIMIZATION' },
   { name: 'Congestion alerts', icon: AlertTriangle, group: 'OPTIMIZATION' },
   { name: 'Link management', icon: Cable, group: 'OPTIMIZATION' },
@@ -1098,6 +1101,8 @@ function App() {
             </div>
           )}
 
+          {page === 'Demo' && <DemoPage />}
+
           {page === 'Settings' && (
             <div className="card settings-card">
               <h3>Monitoring configuration</h3>
@@ -1119,6 +1124,11 @@ function App() {
           </footer>
         </div>
       </main>
+      <AssistantWidget
+        page={page}
+        mode={apiConnected ? 'Live' : 'Demo'}
+        onNavigate={(nextPage) => setPage(nextPage as Page)}
+      />
     </div>
   );
 }
